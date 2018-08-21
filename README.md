@@ -3,7 +3,9 @@
 espGrowLights is an Arduino sketch for setting up a NodeMCU 1.0 (ESP-12E) to
 control the grow lights for our house plants. 
 
-![Image of espGrowLight-v1](espGrowLights-v1.jpg)
+![Fritzing wiring diagram v1](espGrowLights_wiring_diagram_v1.png)
+
+![Photo of espGrowLight-v1](espGrowLights-v1.jpg)
 
 To use this sketch you will need to copy `credentials.sample.h` to
 `credentials.h` and edit it for your wifi (these modules only support 2.4GHz).
