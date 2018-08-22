@@ -25,9 +25,9 @@ Arduino IDE without having to connect to it physically.
 
 ## Project Status
 
-- v1.0.0 (the current version) is controllable via Alexa only.
-- v1.5 or v2 will add a momentary switch for toggling the power state of the lights.
-- v2 will add automatic on and off times so that the grwo lights cut themselves
+- v1.0.0 is controllable via Alexa only.
+- v2 will add a momentary switch for toggling the power state of the lights.
+- v2 will add automatic on and off times so that the grow lights cut themselves
 on in the morning and off at night. My intent is to implement a NTP client so
 that the times are always accurate.
 
