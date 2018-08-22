@@ -16,6 +16,9 @@
 fauxmoESP fauxmo;
 ESP8266WebServer server(80);
 
+const int lightOnHour = 7;
+const int lightOffHour = 19;
+
 // -----------------------------------------------------------------------------
 // NTP
 // -----------------------------------------------------------------------------
@@ -71,6 +74,7 @@ void loop() {
     }
   }
 
+  growLightAutoOnOff();
   server.handleClient();
 }
 // -----------------------------------------------------------------------------
@@ -93,6 +97,21 @@ bool getGrowLightState() {
   }
   //    Serial.printf("[GROWLIGHT] Both grow lights are %s\n", state ? "on" : "off");
   return state;
+}
+
+void growLightAutoOnOff() {
+  // Turn the grow lights on and off at specified times
+  if (hour() == lightOnHour && minute() == 0 && second() == 0) {
+    Serial.print("It's ");
+    Serial.print(timeString());
+    Serial.println(" turning on the grow lights.");
+    setGrowLightState(true);
+  } else if (hour() == lightOffHour && minute() == 0 && second() == 0) {
+    Serial.print("It's ");
+    Serial.print(timeString());
+    Serial.println(" turning off the grow lights.");
+    setGrowLightState(false);
+  }
 }
 
 // -----------------------------------------------------------------------------
