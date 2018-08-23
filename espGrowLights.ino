@@ -12,12 +12,15 @@
 #define LED                 LED_BUILTIN
 #define TOP_GROWLIGHT       D5
 #define BOTTOM_GROWLIGHT    D6
+#define BUTTON              D7
 
 fauxmoESP fauxmo;
 ESP8266WebServer server(80);
 
 const int lightOnHour = 7;
 const int lightOffHour = 19;
+
+time_t lastButtonToggle = 0;
 
 // -----------------------------------------------------------------------------
 // NTP
@@ -46,6 +49,9 @@ void setup() {
   pinMode(BOTTOM_GROWLIGHT, OUTPUT);
   digitalWrite(BOTTOM_GROWLIGHT, HIGH);
 
+  // Button
+  pinMode(BUTTON, INPUT_PULLUP);
+
   setupSerial();
   setupWifi();
   setupOTA();
@@ -70,10 +76,11 @@ void loop() {
   if (timeStatus() != timeNotSet) {
     if (now() != prevDisplay) { //update the display only if time has changed
       prevDisplay = now();
-      Serial.println(timeString());
+//      Serial.println(timeString());
     }
   }
 
+  handleButtonPush();
   growLightAutoOnOff();
   server.handleClient();
 }
@@ -111,6 +118,22 @@ void growLightAutoOnOff() {
     Serial.print(timeString());
     Serial.println(" turning off the grow lights.");
     setGrowLightState(false);
+  }
+}
+
+void handleButtonPush() {
+  int buttonState = digitalRead(BUTTON);
+
+  // check if the pushbutton is pressed. If it is, the buttonState is LOW.
+  // toggle ligths if time has changed since last press
+  if (buttonState == LOW) {
+    if (now() != lastButtonToggle && (now()-1) != lastButtonToggle && (now()-2) != lastButtonToggle) {
+      lastButtonToggle = now();
+      bool currentState = getGrowLightState();
+      setGrowLightState(!currentState);
+      Serial.printf("[GROWLIGHT] Toggling grow lights %s at ", !currentState ? "on" : "off");
+      Serial.println(timeString());
+    }
   }
 }
 
