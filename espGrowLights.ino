@@ -8,27 +8,14 @@
 #include <WiFiUdp.h>
 #include "config.h"
 
-#define SERIAL_BAUDRATE     115200
-#define LED                 LED_BUILTIN
-#define TOP_GROWLIGHT       D5
-#define BOTTOM_GROWLIGHT    D6
-#define BUTTON              D7
-
 fauxmoESP fauxmo;
 ESP8266WebServer server(80);
-
-const int lightOnHour = 7;
-const int lightOffHour = 19;
 
 time_t lastButtonToggle = 0;
 
 // -----------------------------------------------------------------------------
 // NTP
 // -----------------------------------------------------------------------------
-//const int timeZone = 0;             // UTC
-// const int timeZone = -5;           // Eastern Standard Time (USA)
-const int timeZone = -4;            // Eastern Daylight Time (USA)
-static const char ntpServerName[] = "us.pool.ntp.org";
 unsigned int localPort = 8888;      // local port to listen for UDP packets
 const int NTP_PACKET_SIZE = 48;     // NTP time is in the first 48 bytes of message
 byte packetBuffer[NTP_PACKET_SIZE]; //buffer to hold incoming & outgoing packets
@@ -145,7 +132,7 @@ void setupFauxmo() {
   fauxmo.enable(true);
 
   // Virtual Wemo devices
-  fauxmo.addDevice("ESP LED");
+  fauxmo.addDevice(LED_DEVICE_NAME);
   fauxmo.addDevice(DEVICE_NAME);
 
   fauxmo.onSetState([](unsigned char device_id, const char * device_name, bool state) {
@@ -363,4 +350,3 @@ void sendNTPpacket(IPAddress &address) {
   Udp.write(packetBuffer, NTP_PACKET_SIZE);
   Udp.endPacket();
 }
-
