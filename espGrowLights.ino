@@ -1,5 +1,6 @@
 #include <Arduino.h>
 #include <ArduinoOTA.h>
+#include <CircularBuffer.h>
 #include <ESP8266WiFi.h>
 #include <ESP8266mDNS.h>
 #include <ESP8266WebServer.h>
@@ -12,6 +13,9 @@ fauxmoESP fauxmo;
 ESP8266WebServer server(80);
 
 time_t lastButtonToggle = 0;
+
+// Buffer to hold log entires for web page
+CircularBuffer<String, 50> buffer;
 
 // -----------------------------------------------------------------------------
 // NTP
@@ -99,11 +103,13 @@ void growLightAutoOnOff() {
     Serial.print("It's ");
     Serial.print(timeString());
     Serial.println(" turning on the grow lights.");
+    buffer.unshift("It's " + timeString() + " turning on the grow lights.");
     setGrowLightState(true);
   } else if (hour() == lightOffHour && minute() == 0 && second() == 0) {
     Serial.print("It's ");
     Serial.print(timeString());
     Serial.println(" turning off the grow lights.");
+    buffer.unshift("It's " + timeString() + " turning off the grow lights.");
     setGrowLightState(false);
   }
 }
@@ -120,6 +126,8 @@ void handleButtonPush() {
       setGrowLightState(!currentState);
       Serial.printf("[GROWLIGHT] Toggling grow lights %s at ", !currentState ? "on" : "off");
       Serial.println(timeString());
+      String onOff = !currentState ? "on" : "off";
+      buffer.unshift("[GROWLIGHT] Toggling grow lights " + onOff + " at " + timeString());
     }
   }
 }
@@ -136,7 +144,9 @@ void setupFauxmo() {
   fauxmo.addDevice(DEVICE_NAME);
 
   fauxmo.onSetState([](unsigned char device_id, const char * device_name, bool state) {
-    Serial.printf("[MAIN] Device #%d (%s) state: %s\n", device_id, device_name, state ? "ON" : "OFF");
+    Serial.printf("[FAUXMO] Device #%d (%s) state: %s\n", device_id, device_name, state ? "ON" : "OFF");
+    String onOff = state ? "ON" : "OFF";
+    buffer.unshift("[FAUXMO] Device #" + String(device_id) + " (" + device_name + ") state: "+ onOff + String(" at ") + timeString());
     switch (device_id) {
       case 0:
         digitalWrite(LED, !state);
@@ -145,7 +155,8 @@ void setupFauxmo() {
         setGrowLightState(state);
         break;
       default:
-        Serial.printf("[MAIN] Device #%d (%s) not found in switch case statement\n", device_id, device_name);
+        Serial.printf("[FAUXMO] Device #%d (%s) not found in switch case statement\n", device_id, device_name);
+        buffer.unshift("[FAUXMO] Device #" + String(device_id) + " (" + device_name + ") not found in switch case statement");
         break;
     }
   });
@@ -160,7 +171,8 @@ void setupFauxmo() {
         return getGrowLightState();
         break;
       default:
-        Serial.printf("[MAIN] Device #%d (%s) not found in switch case statement\n", device_id, device_name);
+        Serial.printf("[FAUXMO] Device #%d (%s) not found in switch case statement\n", device_id, device_name);
+        buffer.unshift("[FAUXMO] Device #" + String(device_id) + " (" + device_name + ") not found in switch case statement");
         break;
     }
   });
@@ -168,11 +180,16 @@ void setupFauxmo() {
 
 void setupNTP() {
   Udp.begin(localPort);
-  Serial.print("Local port: ");
+  Serial.print("[NTP] Local port: ");
   Serial.println(Udp.localPort());
-  Serial.println("waiting for sync");
+  buffer.unshift("[NTP] Local port: " + String(Udp.localPort()));
+  Serial.println("[NTP] waiting for sync");
+  buffer.unshift("[NTP] waiting for sync");
   setSyncProvider(getNtpTime);
   setSyncInterval(300);
+  Serial.print("[NTP] It's currently ");
+  Serial.println(timeString());
+  buffer.unshift("[NTP] It's currently " + timeString());
 }
 
 void setupOTA() {
@@ -215,18 +232,15 @@ void setupSerial() {
 
 void setupWebserver() {
   server.on("/", handleRoot);
-
-  server.on("/inline", []() {
-    server.send(200, "text/plain", "this works as well");
-  });
-
   server.onNotFound(handleNotFound);
 
   server.begin();
-  Serial.println("HTTP server started");
+  Serial.println("[SETUP] HTTP server started");
+  buffer.unshift("[SETUP] HTTP server started");
 
   if (MDNS.begin(HOST_NAME)) {
-    Serial.println("MDNS responder started");
+    Serial.println("[SETUP] MDNS responder started");
+    buffer.unshift("[SETUP] MDNS responder started");
   }
 }
 
@@ -237,28 +251,53 @@ void setupWifi() {
 
   // Connect
   Serial.printf("[WIFI] Connecting to %s ", WIFI_SSID);
+  buffer.unshift("[WIFI] Connecting to " + String(WIFI_SSID));
   WiFi.begin(WIFI_SSID, WIFI_PASS);
 
   // Wait
+  String dots = "[WIFI] ";
   while (WiFi.status() != WL_CONNECTED) {
     Serial.print(".");
+    dots += ".";
     delay(100);
   }
   Serial.println();
+  buffer.unshift(dots);
 
   // Connected!
   Serial.printf("[WIFI] STATION Mode, SSID: %s, IP address: %s\n", WiFi.SSID().c_str(), WiFi.localIP().toString().c_str());
-
+  buffer.unshift("[WIFI] STATION Mode, SSID: " + WiFi.SSID() + ", IP address: " + WiFi.localIP().toString().c_str());
 }
 
 // -----------------------------------------------------------------------------
 // Webserver functions
 // -----------------------------------------------------------------------------
 void handleRoot() {
-  char body[] = "<!DOCTYPE html><html><body><h1>Hello from ";
-  strcat(body, HOST_NAME);
-  strcat(body, "!</h1></body></html>");
-  server.send(200, "text/html", body);
+  String html = "<!DOCTYPE html>";
+  html += "<html>";
+  html += "<meta http-equiv='refresh' content='30'/>";
+  html += "<title>" + String(HOST_NAME) + "</title>";
+  html += "<style>";
+  html += "  body {";
+  html += "    background-color: #002b36;";
+  html += "    color: white;";
+  html += "  }";
+  html += "  pre {";
+  html += "    font-size: large;";
+  html += "    width: 100%;";
+  html += "    display: inline-block;";
+  html += "  }";
+  html += "</style>";
+  html += "<body>";
+  html += "  <h1>" + String(HOST_NAME) + "</h1>";
+  html += "  <pre>";
+  for (unsigned int i = 0; i < buffer.size(); i++) {
+    html += "    " + buffer[i] + "<br />";
+  }
+  html += "  </pre>";
+  html += "</body>";
+  html += "</html>";
+  server.send(200, "text/html", html);
 }
 
 void handleNotFound() {
@@ -303,18 +342,22 @@ time_t getNtpTime() {
   IPAddress ntpServerIP; // NTP server's ip address
 
   while (Udp.parsePacket() > 0) ; // discard any previously received packets
-  Serial.println("Transmit NTP Request");
+  Serial.println("[NTP] Transmit NTP Request");
+  buffer.unshift("[NTP] Transmit NTP Request");
   // get a random server from the pool
   WiFi.hostByName(ntpServerName, ntpServerIP);
+  Serial.print("[NTP] ");
   Serial.print(ntpServerName);
   Serial.print(": ");
   Serial.println(ntpServerIP);
+  buffer.unshift(String("[NTP] ") +ntpServerName + String(": ") + ntpServerIP);
   sendNTPpacket(ntpServerIP);
   uint32_t beginWait = millis();
   while (millis() - beginWait < 1500) {
     int size = Udp.parsePacket();
     if (size >= NTP_PACKET_SIZE) {
-      Serial.println("Receive NTP Response");
+      Serial.println("[NTP] Receive NTP Response");
+      buffer.unshift("[NTP] Receive NTP Response");
       Udp.read(packetBuffer, NTP_PACKET_SIZE);  // read packet into the buffer
       unsigned long secsSince1900;
       // convert four bytes starting at location 40 to a long integer
@@ -326,6 +369,7 @@ time_t getNtpTime() {
     }
   }
   Serial.println("No NTP Response :-(");
+  buffer.unshift("No NTP Response :-(");
   return 0; // return 0 if unable to get the time
 }
 

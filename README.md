@@ -51,9 +51,15 @@ entries for UTC and US Eastern (with and without daylight savings).
 
 ## Updates and troubleshooting
 
-I've added mDNS so that you can verify the device is up by browsing to the
-http://espGrowLights.local or pinging espGrowLights.local. That name corresponds
-to the `HOST_NAME` entry in `config.sample.h`.
+I've added mDNS so that you can verify the device is up by browsing to
+http://espGrowLights.local or pinging `espGrowLights.local`. That name
+corresponds to the `HOST_NAME` entry in `config.sample.h`. This page also acts
+as a sudo console that displays log messages. This allows for basic debugging
+withoug connecting to the serial port.
+
+![webserver screenshot](webserver.png)
+
+_Note: the page automatically refreshes every 30 seconds._
 
 Once the initial setup is done you can push updates OTA directly from the
 Arduino IDE without having to connect to it physically so long as you are on the
