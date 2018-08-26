@@ -100,16 +100,10 @@ bool getGrowLightState() {
 void growLightAutoOnOff() {
   // Turn the grow lights on and off at specified times
   if (hour() == lightOnHour && minute() == 0 && second() == 0) {
-    Serial.print("It's ");
-    Serial.print(timeString());
-    Serial.println(" turning on the grow lights.");
-    buffer.unshift("It's " + timeString() + " turning on the grow lights.");
+    logger("It's " + timeString() + " turning on the grow lights.");
     setGrowLightState(true);
   } else if (hour() == lightOffHour && minute() == 0 && second() == 0) {
-    Serial.print("It's ");
-    Serial.print(timeString());
-    Serial.println(" turning off the grow lights.");
-    buffer.unshift("It's " + timeString() + " turning off the grow lights.");
+    logger("It's " + timeString() + " turning off the grow lights.");
     setGrowLightState(false);
   }
 }
@@ -124,12 +118,18 @@ void handleButtonPush() {
       lastButtonToggle = now();
       bool currentState = getGrowLightState();
       setGrowLightState(!currentState);
-      Serial.printf("[GROWLIGHT] Toggling grow lights %s at ", !currentState ? "on" : "off");
-      Serial.println(timeString());
       String onOff = !currentState ? "on" : "off";
-      buffer.unshift("[GROWLIGHT] Toggling grow lights " + onOff + " at " + timeString());
+      logger("[GROWLIGHT] Toggling grow lights " + onOff + " at " + timeString());
     }
   }
+}
+
+void logger(String msg) {
+  unsigned int msgLength = msg.length() + 1;
+  char msgChars[msgLength];
+  msg.toCharArray(msgChars, msgLength);
+  Serial.println(msgChars);
+  buffer.unshift(msg);
 }
 
 // -----------------------------------------------------------------------------
@@ -144,9 +144,8 @@ void setupFauxmo() {
   fauxmo.addDevice(DEVICE_NAME);
 
   fauxmo.onSetState([](unsigned char device_id, const char * device_name, bool state) {
-    Serial.printf("[FAUXMO] Device #%d (%s) state: %s\n", device_id, device_name, state ? "ON" : "OFF");
     String onOff = state ? "ON" : "OFF";
-    buffer.unshift("[FAUXMO] Device #" + String(device_id) + " (" + device_name + ") state: "+ onOff + String(" at ") + timeString());
+    logger("[FAUXMO] Device #" + String(device_id) + " (" + device_name + ") state: "+ onOff + String(" at ") + timeString());
     switch (device_id) {
       case 0:
         digitalWrite(LED, !state);
@@ -155,8 +154,7 @@ void setupFauxmo() {
         setGrowLightState(state);
         break;
       default:
-        Serial.printf("[FAUXMO] Device #%d (%s) not found in switch case statement\n", device_id, device_name);
-        buffer.unshift("[FAUXMO] Device #" + String(device_id) + " (" + device_name + ") not found in switch case statement");
+        logger("[FAUXMO] Device #" + String(device_id) + " (" + device_name + ") not found in switch case statement");
         break;
     }
   });
@@ -171,8 +169,7 @@ void setupFauxmo() {
         return getGrowLightState();
         break;
       default:
-        Serial.printf("[FAUXMO] Device #%d (%s) not found in switch case statement\n", device_id, device_name);
-        buffer.unshift("[FAUXMO] Device #" + String(device_id) + " (" + device_name + ") not found in switch case statement");
+        logger("[FAUXMO] Device #" + String(device_id) + " (" + device_name + ") not found in switch case statement");
         break;
     }
   });
@@ -180,16 +177,11 @@ void setupFauxmo() {
 
 void setupNTP() {
   Udp.begin(localPort);
-  Serial.print("[NTP] Local port: ");
-  Serial.println(Udp.localPort());
-  buffer.unshift("[NTP] Local port: " + String(Udp.localPort()));
-  Serial.println("[NTP] waiting for sync");
-  buffer.unshift("[NTP] waiting for sync");
+  logger("[NTP] Local port: " + String(Udp.localPort()));
+  logger("[NTP] waiting for sync");
   setSyncProvider(getNtpTime);
   setSyncInterval(300);
-  Serial.print("[NTP] It's currently ");
-  Serial.println(timeString());
-  buffer.unshift("[NTP] It's currently " + timeString());
+  logger("[NTP] It's currently " + timeString());
 }
 
 void setupOTA() {
@@ -227,7 +219,6 @@ void setupSerial() {
   // Init serial port and clean garbage
   Serial.begin(SERIAL_BAUDRATE);
   Serial.println();
-  Serial.println();
 }
 
 void setupWebserver() {
@@ -235,12 +226,10 @@ void setupWebserver() {
   server.onNotFound(handleNotFound);
 
   server.begin();
-  Serial.println("[SETUP] HTTP server started");
-  buffer.unshift("[SETUP] HTTP server started");
+  logger("[SETUP] HTTP server started");
 
   if (MDNS.begin(HOST_NAME)) {
-    Serial.println("[SETUP] MDNS responder started");
-    buffer.unshift("[SETUP] MDNS responder started");
+    logger("[SETUP] MDNS responder started");
   }
 }
 
@@ -250,12 +239,12 @@ void setupWifi() {
   WiFi.mode(WIFI_STA);
 
   // Connect
-  Serial.printf("[WIFI] Connecting to %s ", WIFI_SSID);
-  buffer.unshift("[WIFI] Connecting to " + String(WIFI_SSID));
+  logger("[WIFI] Connecting to " + String(WIFI_SSID));
   WiFi.begin(WIFI_SSID, WIFI_PASS);
 
   // Wait
   String dots = "[WIFI] ";
+  Serial.print("[WIFI] ");
   while (WiFi.status() != WL_CONNECTED) {
     Serial.print(".");
     dots += ".";
@@ -265,8 +254,7 @@ void setupWifi() {
   buffer.unshift(dots);
 
   // Connected!
-  Serial.printf("[WIFI] STATION Mode, SSID: %s, IP address: %s\n", WiFi.SSID().c_str(), WiFi.localIP().toString().c_str());
-  buffer.unshift("[WIFI] STATION Mode, SSID: " + WiFi.SSID() + ", IP address: " + WiFi.localIP().toString().c_str());
+  logger("[WIFI] STATION Mode, SSID: " + WiFi.SSID() + ", IP address: " + WiFi.localIP().toString().c_str());
 }
 
 // -----------------------------------------------------------------------------
@@ -331,9 +319,9 @@ String timeString() {
   }
   theTime += second();
   if (isAM()) {
-    theTime += " a.m";
+    theTime += " a.m.";
   } else {
-    theTime += " p.m";
+    theTime += " p.m.";
   }
   return theTime;
 }
