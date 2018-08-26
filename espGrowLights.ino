@@ -99,11 +99,11 @@ bool getGrowLightState() {
 
 void growLightAutoOnOff() {
   // Turn the grow lights on and off at specified times
-  if (hour() == lightOnHour && minute() == 0 && second() == 0) {
-    logger("It's " + timeString() + " turning on the grow lights.");
+  if (hour() == lightOnHour && minute() == lightOnMin && second() == 0 && !getGrowLightState()) {
+    logger("[GROWLIGHT] It's " + timeString() + " turning on the grow lights.");
     setGrowLightState(true);
-  } else if (hour() == lightOffHour && minute() == 0 && second() == 0) {
-    logger("It's " + timeString() + " turning off the grow lights.");
+  } else if (hour() == lightOffHour && minute() == lightOffMin && second() == 0 && getGrowLightState()) {
+    logger("[GROWLIGHT] It's " + timeString() + " turning off the grow lights.");
     setGrowLightState(false);
   }
 }
